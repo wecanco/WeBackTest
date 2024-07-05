@@ -65,7 +65,7 @@ if __name__ == '__main__':
         start_date = end_date - timedelta(
             days=365 * 10 if ('d' in timeframe or 'w' in timeframe or 'mo' in timeframe) else 500)
     else:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
 
     if not timeframe:
         timeframe = '1h'
