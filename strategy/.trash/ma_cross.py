@@ -1,13 +1,13 @@
-import backtrader as bt
+from strategy import Strategy
 
 
-class MaCrossStrategy(bt.Strategy):
+class MaCrossStrategy(Strategy):
 
     def __init__(self):
-        ma_fast = bt.ind.SMA(period=50, plotname="SMA50")
-        ma_slow = bt.ind.SMA(period=200, plotname="SMA200")
+        ma_fast = self._bt.ind.EMA(period=50, plotname="EMA50")
+        ma_slow = self._bt.ind.EMA(period=200, plotname="EMA200")
 
-        self.crossover = bt.ind.CrossOver(ma_fast, ma_slow)
+        self.crossover = self._bt.ind.CrossOver(ma_fast, ma_slow)
 
     def next(self):
         grows = 0

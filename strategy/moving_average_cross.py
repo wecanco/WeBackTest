@@ -1,21 +1,20 @@
-import backtrader as bt
+from strategy import Strategy
 
 
-# تعریف استراتژی با اضافه کردن نقاط خرید و فروش
-class MovingAverageCrossStrategy(bt.Strategy):
+class MovingAverageCrossStrategy(Strategy):
     params = (
         ('fast', 50),
         ('slow', 200),
     )
 
     def __init__(self):
-        self.fast_ma = bt.indicators.SimpleMovingAverage(
+        self.fast_ma = self._bt.indicators.SimpleMovingAverage(
             self.data.close, period=self.params.fast, plotname="SMA50"
         )
-        self.slow_ma = bt.indicators.SimpleMovingAverage(
+        self.slow_ma = self._bt.indicators.SimpleMovingAverage(
             self.data.close, period=self.params.slow, plotname="SMA200"
         )
-        self.crossover = bt.indicators.CrossOver(self.fast_ma, self.slow_ma)
+        self.crossover = self._bt.indicators.CrossOver(self.fast_ma, self.slow_ma)
 
     def next(self):
         # size = self.broker.get_cash() / self.data.close[0]

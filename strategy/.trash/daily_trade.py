@@ -1,8 +1,8 @@
-import backtrader as bt
 import random
+from strategy import Strategy
 
 
-class DailyTradeStrategy(bt.Strategy):
+class DailyTradeStrategy(Strategy):
     params = (
         ('trades_per_day', 10),
         ('target_profit', 0.001),  # 0.1%
@@ -42,7 +42,7 @@ class DailyTradeStrategy(bt.Strategy):
         if order.status in [order.Completed]:
             if order.isbuy():
                 self.buy_price = order.executed.price
-                self.last_trade_time = bt.num2date(order.executed.dt)
+                self.last_trade_time = self._bt.num2date(order.executed.dt)
             elif order.issell():
                 self.trade_count += 1
 

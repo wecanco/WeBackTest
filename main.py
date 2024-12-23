@@ -1,9 +1,13 @@
+import pathlib
+import re
+import sys
+
 import backtrader as bt
 import os.path
 import yfinance as yf
 import pandas as pd
 from datetime import date, timedelta, datetime
-from strategy import *
+from importlib import util, import_module
 import logging
 
 
@@ -31,7 +35,23 @@ class WinRateAnalyzer(bt.Analyzer):
                 'durations': self.durations}
 
 
+def get_strategies_from_files():
+    _all_strategies = {}
+    directory = pathlib.Path(__file__).parent.resolve().__str__() + '/strategy/'
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith('.py'):
+                file_path = os.path.join(root, file)
+                with open(file_path, 'r', encoding="utf8") as f:
+                    content = f.read()
+                    class_name = re.findall(r"class\s*([^:]*)\s*\(Strategy", content)
+                    if len(class_name) > 0:
+                        _all_strategies[class_name[0]] = file_path
+    return _all_strategies
+
+
 if __name__ == '__main__':
+    all_strategies = get_strategies_from_files()
     # دریافت ورودی‌ها
     symbol = input("Enter Currency [like BTC]: ")
     timeframe = input("Enter Timeframe [1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo]: ")
@@ -40,7 +60,25 @@ if __name__ == '__main__':
     balance = input("Account Balance ($): ")
     margin_percent = input("Percent of Asset Per Order(%): ")
     commission = input("Broker Commission (%): ")
+    __all_strategies_s = "\n\t".join(all_strategies.keys())
+    strategy = input(f"Select Strategy [\n\t{__all_strategies_s}\n]: ")
     print("\n\t ====> ")
+
+    if not strategy:
+        strategy = 'MaCrossStrategy'
+
+    # Load Strategy Class
+    if strategy not in all_strategies:
+        print("Strategy not found! add your strategy to `strategy` folder.")
+        exit()
+
+    file_path = all_strategies[strategy]
+    file_name = os.path.splitext(os.path.basename(file_path))[0]
+    spec = util.spec_from_file_location(file_name, file_path)
+    module_name = util.module_from_spec(spec)
+    sys.modules[file_name] = module_name
+    spec.loader.exec_module(module_name)
+    strategyClass = getattr(module_name, strategy)
 
     if not balance:
         balance = 1000
@@ -54,7 +92,12 @@ if __name__ == '__main__':
         margin_percent = 5
     margin_percent = float(margin_percent)
 
+    if not symbol:
+        symbol = 'BTC'
     symbol = symbol.upper()
+
+    if not timeframe:
+        timeframe = '1h'
 
     if not end_date:
         end_date = date.today() - timedelta(days=1)
@@ -63,12 +106,9 @@ if __name__ == '__main__':
 
     if not start_date:
         start_date = end_date - timedelta(
-            days=365 * 10 if ('d' in timeframe or 'w' in timeframe or 'mo' in timeframe) else 500)
+            days=365 * 10 if ('d' in timeframe or 'w' in timeframe or 'mo' in timeframe) else 120)
     else:
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-
-    if not timeframe:
-        timeframe = '1h'
 
     print_data = f"Currency: {symbol} | Start Date: {start_date.strftime('%Y-%m-%d')} | " \
                  f"End Date: {end_date.strftime('%Y-%m-%d')} | Balance: ${balance} | margin percent: {margin_percent}"
@@ -97,8 +137,7 @@ if __name__ == '__main__':
 
     # اضافه کردن داده‌ها و استراتژی
     cerebro.adddata(data_feed)
-    # cerebro.addstrategy(MaCrossStrategy)
-    cerebro.addstrategy(DailyTradeStrategy)
+    cerebro.addstrategy(strategyClass)
 
     cerebro.addsizer(bt.sizers.PercentSizer, percents=margin_percent)
 
