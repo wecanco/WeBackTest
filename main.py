@@ -12,6 +12,9 @@ import logging
 
 
 # تعریف تحلیلگر سفارشی برای محاسبه وین ریت
+from classes.TradeObserver import TradePositionObserver, TradePnLObserver, PositionBoxObserver
+
+
 class WinRateAnalyzer(bt.Analyzer):
     def __init__(self):
         self.wins = 0
@@ -31,8 +34,19 @@ class WinRateAnalyzer(bt.Analyzer):
     def get_analysis(self):
         total_trades = self.wins + self.losses
         win_rate = (self.wins / total_trades) * 100 if total_trades > 0 else 0
-        return {'win_rate': win_rate, 'wins': self.wins, 'losses': self.losses, 'pnls': self.pnls,
-                'durations': self.durations}
+        avg_win = sum([pnl for pnl in self.pnls if pnl > 0]) / self.wins if self.wins > 0 else 0
+        avg_loss = sum([pnl for pnl in self.pnls if pnl < 0]) / self.losses if self.losses > 0 else 0
+
+        return {
+            'win_rate': win_rate,
+            'wins': self.wins,
+            'losses': self.losses,
+            'pnls': self.pnls,
+            'durations': self.durations,
+            'avg_win': avg_win,
+            'avg_loss': avg_loss,
+            'profit_factor': abs(avg_win / avg_loss) if avg_loss != 0 else 0
+        }
 
 
 def get_strategies_from_files():
@@ -106,7 +120,7 @@ if __name__ == '__main__':
 
     if not start_date:
         start_date = end_date - timedelta(
-            days=365 * 10 if ('d' in timeframe or 'w' in timeframe or 'mo' in timeframe) else 120)
+            days=365 * 10 if ('d' in timeframe or 'w' in timeframe or 'mo' in timeframe) else 60)
     else:
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
 
@@ -135,6 +149,31 @@ if __name__ == '__main__':
     # ایجاد نمونه از Cerebro
     cerebro = bt.Cerebro()
 
+    # cerebro.addobserver(TradePositionObserver)
+    # cerebro.addobserver(TradePnLObserver)
+    # cerebro.addobserver(PositionBoxObserver)
+
+    # # تنظیمات نمودار
+    # cerebro.plotinfo = dict(
+    #     plot=True,
+    #     style='candlestick',
+    #     barup='green',
+    #     bardown='red',
+    #     volup='green',
+    #     voldown='red',
+    #     showvolume=True,
+    # )
+    #
+    # # تنظیمات ظاهری
+    # plt_style = {
+    #     'style': 'candlestick',
+    #     'barup': '#26a69a',  # رنگ کندل صعودی
+    #     'bardown': '#ef5350',  # رنگ کندل نزولی
+    #     'volume': True,
+    #     'barupfill': True,
+    #     'bardownfill': True,
+    # }
+
     # اضافه کردن داده‌ها و استراتژی
     cerebro.adddata(data_feed)
     cerebro.addstrategy(strategyClass)
@@ -160,7 +199,8 @@ if __name__ == '__main__':
     print("\t => ")
     total_pnls = sum(win_rate_analysis['pnls'])
     total_duration = sum(win_rate_analysis['durations'])
-    grows_percent = (float((balance + total_pnls) / balance) - 1.00) * 100
+    # grows_percent = (float((balance + total_pnls) / balance) - 1.00) * 100
+    grows_percent = ((cerebro.broker.getvalue() / balance) - 1.0) * 100
     print(f"Initial Balance: ${balance:.2f}")
     print(f"Final Portfolio Value: ${cerebro.broker.getvalue():.2f}")
     # print(f"Sharpe Ratio: {strategy.analyzers.sharpe_ratio.get_analysis()['sharperatio']:.2f}")
@@ -179,4 +219,4 @@ if __name__ == '__main__':
     print("=====================")
 
     # نمایش نمودار
-    cerebro.plot(style='candlestick', barup='green', bardown='red')
+    cerebro.plot(style='candlestick', barup='green', bardown='red', volume=True)
